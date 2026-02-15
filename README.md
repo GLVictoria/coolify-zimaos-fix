@@ -1,256 +1,262 @@
-# Coolify ZimaOS Read-Only Filesystem Fix
+# Coolify ZimaOS Fix
 
-## The Problem
+> Automated fixes for common Coolify issues on ZimaOS
 
-When running Coolify on ZimaOS, you may encounter this error:
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![ZimaOS](https://img.shields.io/badge/ZimaOS-Compatible-blue.svg)](https://zimaos.com)
+[![Coolify](https://img.shields.io/badge/Coolify-4.0.0--beta.379-green.svg)](https://coolify.io)
+
+## 🚀 Quick Start
+
+### Problem 1: Read-Only Filesystem Error
 
 ```
 mkdir: cannot create directory '/data': Read-only file system
 ```
 
-This happens because:
-1. **ZimaOS has a read-only root filesystem** - The root filesystem (`/`) is mounted as read-only (squashfs), which is typical for immutable operating systems
-2. **Coolify expects `/data/coolify` to exist** - By default, Coolify tries to create and use `/data/coolify` for deployments and configuration
-3. **Cannot create `/data` directory** - Since the root filesystem is read-only, creating `/data` fails
-
-## The Solution
-
-The fix involves reconfiguring Coolify to use `/DATA/coolify` instead of `/data/coolify` by setting the `BASE_CONFIG_PATH` environment variable.
-
-### Quick Fix
-
-Run the automated fix script:
-
+**Fix:**
 ```bash
-sudo bash /DATA/coolify-fix/fix-coolify.sh
+sudo bash scripts/fix-coolify.sh
 ```
 
-### What the Script Does
+### Problem 2: SSH Key Validation Error
 
-1. ✅ Backs up current Coolify container configuration
-2. ✅ Extracts existing database and Redis passwords
-3. ✅ Creates `/DATA/coolify` directory (on writable storage)
-4. ✅ Updates database server configuration
-5. ✅ Recreates Coolify container with `BASE_CONFIG_PATH=/DATA/coolify`
-6. ✅ Verifies the installation
-
-## Manual Fix Instructions
-
-If you prefer to fix it manually or understand what's happening:
-
-### Step 1: Extract Current Configuration
-
-```bash
-# Get database password
-DB_PASSWORD=$(docker inspect zimaos-coolify | grep -oP 'DB_PASSWORD=\K[^"]+' | head -1)
-
-# Get Redis password
-REDIS_PASSWORD=$(docker inspect zimaos-coolify | grep -oP 'REDIS_PASSWORD=\K[^"]+' | head -1)
-
-# Get APP_KEY
-APP_KEY=$(docker inspect zimaos-coolify | grep -oP 'APP_KEY=\K[^"]+' | head -1)
+```
+Error: This key is not valid for this server
 ```
 
-### Step 2: Create Data Directory
-
+**Fix:**
 ```bash
-mkdir -p /DATA/coolify
+sudo bash scripts/fix-ssh-key.sh
 ```
 
-### Step 3: Fix Database Configuration
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Documentation](#documentation)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+## 🎯 Overview
+
+This repository contains automated fix scripts and comprehensive documentation for resolving common Coolify issues on ZimaOS, specifically:
+
+1. **Read-Only Filesystem Error** - ZimaOS uses an immutable root filesystem, preventing Coolify from creating `/data/coolify`
+2. **SSH Key Validation Error** - Server configuration references non-existent SSH keys
+3. **Database Connection Issues** - Password mismatches between configuration and database
+4. **Permission Problems** - Incorrect file ownership preventing Coolify from writing logs
+
+## ✨ Features
+
+- ✅ **Automated Fix Scripts** - One-command solutions for common issues
+- ✅ **Comprehensive Documentation** - Detailed troubleshooting guides
+- ✅ **Manual Fix Instructions** - Step-by-step guides for understanding the fixes
+- ✅ **Verification Tests** - Scripts to verify fixes are working correctly
+- ✅ **Safety First** - Automatic backups before making changes
+- ✅ **Verbose Output** - Clear explanations of what's happening
+
+## 📦 Installation
+
+### Method 1: Clone Repository
 
 ```bash
-# Update server to use correct SSH private key
-docker exec zimaos-coolify-postgres psql -U coolify -d coolify -c \
-  "UPDATE servers SET private_key_id = 4 WHERE id = 0;"
+cd /var/lib/casaos_data/
+git clone https://github.com/YOUR_USERNAME/coolify-zimaos-fix.git
+cd coolify-zimaos-fix
 ```
 
-### Step 4: Recreate Container
+### Method 2: Direct Download
 
 ```bash
-# Stop and remove old container
-docker stop zimaos-coolify
-docker rm zimaos-coolify
-
-# Create new container with BASE_CONFIG_PATH
-docker run -d \
-  --name zimaos-coolify \
-  --restart unless-stopped \
-  --network zimaos_coolify_network \
-  -p 8000:80 \
-  -e BASE_CONFIG_PATH=/DATA/coolify \
-  -e REDIS_HOST=zimaos-coolify-redis \
-  -e REDIS_PASSWORD="$REDIS_PASSWORD" \
-  -e DB_HOST=zimaos-coolify-postgres \
-  -e DB_PASSWORD="$DB_PASSWORD" \
-  -e DB_DATABASE=coolify \
-  -e DB_USERNAME=coolify \
-  -e DB_PORT=5432 \
-  -e PUSHER_HOST=zimaos-coolify-soketi \
-  -e APP_KEY="$APP_KEY" \
-  -v /DATA/AppData/coolify/backups:/var/www/html/storage/app/backups \
-  -v /DATA/AppData/coolify/webhooks-during-maintenance:/var/www/html/storage/app/webhooks-during-maintenance \
-  -v /DATA/AppData/coolify/logs:/var/www/html/storage/logs \
-  -v /DATA/AppData/coolify/ssh:/var/www/html/storage/app/ssh \
-  -v /DATA/AppData/coolify/applications:/var/www/html/storage/app/applications \
-  -v /DATA/AppData/coolify/databases:/var/www/html/storage/app/databases \
-  -v /DATA/AppData/coolify/services:/var/www/html/storage/app/services \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  ghcr.io/coollabsio/coolify:4.0.0-beta.379
+cd /var/lib/casaos_data/
+wget https://github.com/YOUR_USERNAME/coolify-zimaos-fix/archive/main.zip
+unzip main.zip
+cd coolify-zimaos-fix-main
 ```
 
-### Step 5: Verify
+### Method 3: Already on ZimaOS
+
+If you already have the fix directory:
+```bash
+cd /var/lib/casaos_data/coolify-fix
+```
+
+## 🛠️ Usage
+
+### Fix Read-Only Filesystem
+
+This fixes the `mkdir: cannot create directory '/data': Read-only file system` error.
 
 ```bash
-# Check container is running
+sudo bash scripts/fix-coolify.sh
+```
+
+**What it does:**
+1. Backs up current Coolify configuration
+2. Extracts database and Redis passwords
+3. Creates `/DATA/coolify` directory
+4. Sets `BASE_CONFIG_PATH=/DATA/coolify`
+5. Recreates Coolify container with proper configuration
+6. Verifies installation
+
+### Fix SSH Key Validation
+
+This fixes the `This key is not valid for this server` error.
+
+```bash
+sudo bash scripts/fix-ssh-key.sh
+```
+
+**What it does:**
+1. Checks current server SSH key configuration
+2. Finds available SSH keys in database
+3. Updates server to use correct key ID
+4. Ensures server user is set to `root`
+5. Verifies SSH key is authorized
+6. Tests SSH connection
+
+### Verify Fixes
+
+Test that all fixes are working correctly:
+
+```bash
+bash scripts/test-fix.sh
+```
+
+## 📚 Documentation
+
+### Main Documentation
+
+- **[README.md](README.md)** - This file, main entry point
+- **[INDEX.md](INDEX.md)** - Quick reference and common workflows
+
+### Detailed Guides
+
+- **[docs/SSH-KEY-FIX.md](docs/SSH-KEY-FIX.md)** - Complete SSH key troubleshooting guide
+- **[docs/FIXES-APPLIED.md](docs/FIXES-APPLIED.md)** - History of issues and fixes
+
+### Scripts
+
+- **[scripts/fix-coolify.sh](scripts/fix-coolify.sh)** - Read-only filesystem fix
+- **[scripts/fix-ssh-key.sh](scripts/fix-ssh-key.sh)** - SSH key configuration fix
+- **[scripts/test-fix.sh](scripts/test-fix.sh)** - Verification tests
+
+## 🔧 Troubleshooting
+
+### Check Coolify Status
+
+```bash
 docker ps | grep coolify
+```
 
-# Verify BASE_CONFIG_PATH
+### Check Logs
+
+```bash
+docker logs zimaos-coolify --tail 100
+```
+
+### Verify Configuration
+
+```bash
+# Check BASE_CONFIG_PATH
 docker exec zimaos-coolify env | grep BASE_CONFIG_PATH
 
-# Test web interface
-curl http://localhost:8000
+# Check SSH keys
+docker exec zimaos-coolify ls -la /var/www/html/storage/app/ssh/keys/
+
+# Check database connection
+docker exec zimaos-coolify-postgres psql -U coolify -d coolify -c "SELECT version();"
 ```
 
-## Additional Fixes Applied
+### Common Issues
 
-### SSH Configuration (Already Persistent on ZimaOS)
+| Error | Solution |
+|-------|----------|
+| `Read-only file system` | Run `scripts/fix-coolify.sh` |
+| `This key is not valid` | Run `scripts/fix-ssh-key.sh` |
+| `password authentication failed` | Check database passwords |
+| Container won't start | Check logs and verify docker-compose.yml |
 
-ZimaOS is already configured for persistent SSH:
-- `AuthorizedKeysFile` points to `/DATA/.ssh/authorized_keys`
-- `PubkeyAuthentication` is enabled
-- SSH keys are stored in persistent storage
+For detailed troubleshooting, see [INDEX.md](INDEX.md#troubleshooting-commands).
 
-### Database Server Configuration
+## 🎓 How It Works
 
-The fix also corrects the server's SSH private key reference:
-- Updates `servers` table to use `private_key_id = 4` (coolify-host key)
-- Fixes "No query results for model [App\Models\PrivateKey] 0" error
+### ZimaOS Filesystem
 
-## Verification
-
-After applying the fix, verify everything is working:
-
-```bash
-# 1. Check all containers are healthy
-docker ps | grep coolify
-
-# 2. Verify BASE_CONFIG_PATH
-docker exec zimaos-coolify env | grep BASE_CONFIG_PATH
-# Should output: BASE_CONFIG_PATH=/DATA/coolify
-
-# 3. Test SSH connection
-ssh -i /DATA/.ssh/id_coolify root@localhost "echo 'SSH works'"
-
-# 4. Access Coolify web interface
-# http://YOUR_SERVER_IP:8000
-```
-
-## Troubleshooting
-
-### Container Won't Start
-
-Check logs:
-```bash
-docker logs zimaos-coolify --tail 50
-```
-
-### Database Connection Errors
-
-Verify passwords were extracted correctly:
-```bash
-docker inspect zimaos-coolify | grep -E "DB_PASSWORD|REDIS_PASSWORD"
-```
-
-### SSH Still Failing
-
-Check if SSH service is running:
-```bash
-systemctl status sshd
-# Or check for standalone SSH daemon
-ps aux | grep sshd
-```
-
-## Important Notes
-
-### Persistence
-
-⚠️ **This fix is temporary if ZimaOS recreates the container**
-
-If ZimaOS updates or the Coolify app is reinstalled from the app store, you will need to run this fix again.
-
-**To make it permanent**, you would need to:
-1. Modify the ZimaOS Coolify app store configuration
-2. OR create a systemd service that runs this script on boot
-3. OR contact the ZimaOS/Coolify integration maintainer
-
-### Storage Paths
-
-When deploying applications with Coolify:
-- ✅ Use: `/DATA/AppData/your-app-name/` for persistent storage
-- ❌ Avoid: `/data/` (read-only filesystem)
-
-### System Information
-
-- **ZimaOS Root Filesystem**: Read-only squashfs
-- **Writable Storage**: `/DATA` (ext4, persistent)
-- **Coolify Default Path**: `/data/coolify` (won't work on ZimaOS)
-- **Fixed Path**: `/DATA/coolify` (works on ZimaOS)
-
-## Technical Details
-
-### Why This Happens
-
-ZimaOS uses an immutable OS design with:
+ZimaOS uses an immutable operating system design:
 - **Read-only root filesystem** (`/` on squashfs)
-- **Writable overlay for `/etc`** (configuration files)
-- **Persistent data storage** in `/DATA` (user data)
+- **Writable overlay** for `/etc` (configuration)
+- **Persistent data storage** in `/DATA`
 
-This design:
-- ✅ Prevents system corruption
-- ✅ Enables atomic updates
-- ✅ Improves reliability
-- ❌ Prevents creating `/data` directory
+This prevents system corruption and enables atomic updates, but breaks applications that try to write to the root filesystem.
 
-### How Coolify Uses BASE_CONFIG_PATH
+### The Fix
 
-Coolify's `BASE_CONFIG_PATH` environment variable controls where it stores:
-- Proxy configurations (Traefik/Caddy)
-- Deployment scripts
-- Application data paths
-- Service configurations
+We configure Coolify to use `/DATA/coolify` instead of `/data/coolify` by setting the `BASE_CONFIG_PATH` environment variable:
 
-Sources in Coolify code:
-- `/var/www/html/config/constants.php`: Defines default path
-- `/var/www/html/bootstrap/helpers/shared.php`: Uses the path
-- Environment variable `BASE_CONFIG_PATH` overrides the default
+```bash
+BASE_CONFIG_PATH=/DATA/coolify
+```
 
-## Related Issues
+This redirects all Coolify's deployment configurations and data to writable storage.
 
-- [ZimaOS Coolify Discussion #1](https://github.com/justserdar/zimaos-coolify/discussions/1) - SSH key authentication
-- Coolify expects writable `/data` directory
-- ZimaOS immutable filesystem design
+### SSH Key Management
 
-## Files in This Directory
+Coolify stores SSH keys in the PostgreSQL database and exports them to the container filesystem on startup. The server must reference a valid `private_key_id` that exists in the `private_keys` table.
 
-- `fix-coolify.sh` - Automated fix script
-- `README.md` - This documentation
-- `/tmp/coolify-backup-*.json` - Backup files created by script
+## 🤝 Contributing
 
-## Support
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
-If you encounter issues:
+### Development
 
-1. Check the [Troubleshooting](#troubleshooting) section
-2. Review logs: `docker logs zimaos-coolify`
-3. Verify storage: `df -h /DATA`
-4. Check SSH: `systemctl status sshd`
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/coolify-zimaos-fix.git
+cd coolify-zimaos-fix
 
-## License
+# Make your changes
+# Test thoroughly on ZimaOS
 
-This fix is provided as-is for the ZimaOS and Coolify community.
+# Submit a pull request
+```
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Coolify](https://coolify.io) - The self-hosting platform
+- [ZimaOS](https://zimaos.com) - The immutable operating system
+- Community contributors and testers
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/coolify-zimaos-fix/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/YOUR_USERNAME/coolify-zimaos-fix/discussions)
+- **Coolify Docs**: https://coolify.io/docs
+- **ZimaOS Community**: https://community.zimaspace.com
+
+## 🔄 Updates
+
+**Latest Version**: 1.0.0 (February 15, 2026)
+
+### Changelog
+
+- **1.0.0** (2026-02-15)
+  - Initial release
+  - Read-only filesystem fix script
+  - SSH key configuration fix script
+  - Comprehensive documentation
+  - Verification tests
 
 ---
 
-**Last Updated**: February 15, 2026
-**Tested On**: ZimaOS with Coolify 4.0.0-beta.379
+**Made with ❤️ for the ZimaOS and Coolify community**
+
+**⭐ Star this repo if it helped you!**

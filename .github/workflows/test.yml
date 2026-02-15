@@ -1,0 +1,44 @@
+# GitHub Actions workflow for testing
+# This is a placeholder for future automated testing
+
+name: Test Scripts
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          severity: warning
+
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Markdown Lint
+        uses: actionshub/markdownlint@main
+        with:
+          path: '**/*.md'
+          ignore: node_modules
+
+  # Future: Add integration tests
+  # integration-test:
+  #   name: Integration Tests
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Run tests
+  #       run: bash scripts/test-fix.sh
